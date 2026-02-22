@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodOrderWebsite</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}
+body{
+  background:linear-gradient(135deg,#1e1e2f,#3a3a5f);
+  color:white;
+  min-height:100vh;
+  overflow-x:hidden;
+  perspective:1000px;
+}
+
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:20px 40px;
+  font-size:24px;
+  font-weight:bold;
+}
+
+.cart-btn{
+  cursor:pointer;
+  position:relative;
+  font-size:22px;
+}
+.cart-count{
+  position:absolute;
+  top:-8px;
+  right:-10px;
+  background:red;
+  font-size:12px;
+  padding:3px 6px;
+  border-radius:50%;
+}
+
+.filters{
+  text-align:center;
+  margin-bottom:20px;
+}
+.filters button{
+  padding:8px 18px;
+  margin:5px;
+  border:none;
+  border-radius:20px;
+  cursor:pointer;
+  background:#555;
+  color:white;
+}
+
+.container{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:25px;
+  padding:20px;
+}
+
+.card{
+  background:#2c2c45;
+  border-radius:20px;
+  padding:15px;
+  text-align:center;
+  transition:0.3s;
+  transform-style:preserve-3d;
+  box-shadow:0 15px 30px rgba(0,0,0,0.5);
+}
+.card:hover{
+  transform:rotateY(10deg) rotateX(5deg);
+}
+
+.card img{
+  width:100%;
+  height:160px;
+  object-fit:cover;
+  border-radius:15px;
+}
+
+.price{
+  margin:8px 0;
+  font-weight:bold;
+}
+
+.qty{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin:8px 0;
+}
+.qty button{
+  width:28px;height:28px;
+  border:none;
+  border-radius:50%;
+  background:orange;
+  color:white;
+  cursor:pointer;
+}
+
+.addBtn{
+  padding:6px 15px;
+  border:none;
+  border-radius:20px;
+  background:crimson;
+  color:white;
+  cursor:pointer;
+}
+
+.cart-panel{
+  position:fixed;
+  top:0;
+  right:-350px;
+  width:320px;
+  height:100%;
+  background:#111;
+  padding:20px;
+  transition:0.4s;
+  overflow:auto;
+}
+.cart-panel.show{
+  right:0;
+}
+.cart-item{
+  border-bottom:1px solid #444;
+  padding:8px 0;
+}
+.payBtn{
+  width:100%;
+  padding:10px;
+  margin-top:15px;
+  border:none;
+  border-radius:20px;
+  background:green;
+  color:white;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  🍽 3D Food Ordering
+  <div class="cart-btn" onclick="toggleCart()">
+    🛒 <span class="cart-count" id="cartCount">0</span>
+  </div>
+</div>
+
+<div class="filters">
+  <button onclick="filterFood('All')">All</button>
+  <button onclick="filterFood('Veg')">Veg</button>
+  <button onclick="filterFood('NonVeg')">Non-Veg</button>
+</div>
+
+<div class="container" id="foodContainer"></div>
+
+<div class="cart-panel" id="cartPanel">
+  <h2>Your Cart</h2>
+  <div id="cartItems"></div>
+  <h3 id="total"></h3>
+  <button class="payBtn" onclick="payNow()">Pay Now</button>
+</div>
+
+<script>
+
+const imageMap={
+Pizza:"https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=600&q=80",
+Burger:"https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=600&q=80",
+Biryani:"https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80"
+};
+
+const baseFoods=["Pizza","Burger","Biryani"];
+let foods=[];
+baseFoods.forEach(item=>{
+  for(let i=1;i<=4;i++){
+    foods.push({
+      name:item+" "+i,
+      price:Math.floor(Math.random()*300)+150,
+      type:Math.random()>0.5?"Veg":"NonVeg",
+      img:imageMap[item]
+    });
+  }
+});
+
+let cart=[];
+let quantities={};
+const container=document.getElementById("foodContainer");
+
+function render(data){
+  container.innerHTML="";
+  data.forEach((food,index)=>{
+    if(!quantities[index]) quantities[index]=1;
+
+    container.innerHTML+=`
+    <div class="card">
+      <img src="${food.img}">
+      <h3>${food.name}</h3>
+      <div class="price">₹${food.price}</div>
+      <div>${food.type}</div>
+
+      <div class="qty">
+        <button onclick="changeQty(${index},-1)">-</button>
+        <span id="qty${index}">${quantities[index]}</span>
+        <button onclick="changeQty(${index},1)">+</button>
+      </div>
+
+      <button class="addBtn" onclick="addToCart(${index})">Add</button>
+    </div>`;
+  });
+}
+
+render(foods);
+
+function changeQty(i,val){
+  quantities[i]+=val;
+  if(quantities[i]<1) quantities[i]=1;
+  document.getElementById("qty"+i).innerText=quantities[i];
+}
+
+function addToCart(i){
+  cart.push({...foods[i],qty:quantities[i]});
+  updateCart();
+}
+
+function updateCart(){
+  let total=0;
+  const cartItems=document.getElementById("cartItems");
+  cartItems.innerHTML="";
+  cart.forEach(item=>{
+    total+=item.price*item.qty;
+    cartItems.innerHTML+=`
+      <div class="cart-item">
+        ${item.name} x${item.qty} - ₹${item.price*item.qty}
+      </div>`;
+  });
+  document.getElementById("total").innerText="Total: ₹"+total;
+  document.getElementById("cartCount").innerText=cart.length;
+}
+
+function toggleCart(){
+  document.getElementById("cartPanel").classList.toggle("show");
+}
+
+function filterFood(type){
+  if(type==="All") render(foods);
+  else render(foods.filter(f=>f.type===type));
+}
+
+function payNow(){
+  if(cart.length===0){alert("Cart Empty");return;}
+  alert("Payment Successful ✅");
+  cart=[];
+  updateCart();
+  toggleCart();
+}
+
+</script>
+
+</body>
+</html>
